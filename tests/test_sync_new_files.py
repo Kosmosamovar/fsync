@@ -39,6 +39,11 @@ class SyncNewFilesTest(unittest.TestCase):
             self.assertEqual(changed, ["a.txt"])
             self.assertEqual((dst / "a.txt").read_text(encoding="utf-8"), "updated content")
 
+            with index_path.open("r", encoding="utf-8") as handle:
+                saved = __import__("json").load(handle)
+            self.assertIn("a.txt", saved["files"])
+            self.assertEqual(saved["files"]["a.txt"]["hash"], __import__("hashlib").sha256(b"updated content").hexdigest())
+
     def test_scan_source_skips_missing_file(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -61,6 +66,32 @@ class SyncNewFilesTest(unittest.TestCase):
 
             self.assertIn("valid.txt", manifest)
             self.assertNotIn("broken.txt", manifest)
+
+    def test_same_folder_contents_work_with_different_absolute_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            first_root = root / "pc1" / "sync_folder"
+            second_root = root / "pc2" / "other" / "sync_folder"
+            destination = root / "destination"
+            first_root.mkdir(parents=True)
+            second_root.mkdir(parents=True)
+            destination.mkdir()
+
+            (first_root / "a.txt").write_text("hello", encoding="utf-8")
+            (first_root / "nested").mkdir()
+            (first_root / "nested" / "b.bin").write_bytes(b"\x00\x01")
+
+            (second_root / "a.txt").write_text("hello", encoding="utf-8")
+            (second_root / "nested").mkdir()
+            (second_root / "nested" / "b.bin").write_bytes(b"\x00\x01")
+
+            index_path = root / "index.json"
+            build_index(first_root, index_path)
+
+            copied = copy_new_files(second_root, destination, index_path)
+            self.assertEqual(copied, ["a.txt", "nested/b.bin"])
+            self.assertEqual((destination / "a.txt").read_text(encoding="utf-8"), "hello")
+            self.assertEqual((destination / "nested" / "b.bin").read_bytes(), b"\x00\x01")
 
 
 if __name__ == "__main__":
