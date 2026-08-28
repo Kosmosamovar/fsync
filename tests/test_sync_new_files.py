@@ -67,6 +67,52 @@ class SyncNewFilesTest(unittest.TestCase):
             self.assertIn("valid.txt", manifest)
             self.assertNotIn("broken.txt", manifest)
 
+    def test_simple_mode_uses_name_and_size(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            src = root / "src"
+            dst = root / "dst"
+            src.mkdir()
+            dst.mkdir()
+
+            src_file = src / "report.txt"
+            src_file.write_text("alpha", encoding="utf-8")
+            index_path = root / "index.json"
+            build_index(src, index_path)
+
+            copied = copy_new_files(src, dst, index_path, simple_mode=True)
+            self.assertEqual(copied, ["report.txt"])
+            self.assertEqual((dst / "report.txt").read_text(encoding="utf-8"), "alpha")
+
+            src_file.write_text("beta", encoding="utf-8")
+            copied = copy_new_files(src, dst, index_path, simple_mode=True)
+            self.assertEqual(copied, ["report.txt"])
+            self.assertEqual((dst / "report.txt").read_text(encoding="utf-8"), "beta")
+
+            src_file.write_text("zzzz", encoding="utf-8")
+            copied = copy_new_files(src, dst, index_path, simple_mode=True)
+            self.assertEqual(copied, [])
+            self.assertEqual((dst / "report.txt").read_text(encoding="utf-8"), "beta")
+
+    def test_same_project_folder_with_new_folder_stays_empty(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            project = root / "project"
+            new_dir = project / "new"
+            project.mkdir()
+            new_dir.mkdir()
+
+            (project / "a.txt").write_text("hello", encoding="utf-8")
+            (project / "nested").mkdir()
+            (project / "nested" / "b.bin").write_bytes(b"\x00\x01")
+
+            index_path = project / "sync_index.json"
+            build_index(project, index_path)
+
+            copied = copy_new_files(project, new_dir, index_path)
+            self.assertEqual(copied, [])
+            self.assertEqual(list(new_dir.rglob("*")), [])
+
     def test_same_folder_contents_work_with_different_absolute_paths(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
