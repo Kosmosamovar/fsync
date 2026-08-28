@@ -58,6 +58,39 @@ sync_new_files.exe copy "E:\kolo\fjfd\sync_folder" "F:\flash\copy_here" --index 
 run_dry_run.bat "E:\kolo\fjfd\sync_folder" "D:\index\sync_index.json" "F:\flash\copy_here"
 ```
 
+### 4. Быстрый режим по имени и размеру
+
+Если нужен более быстрый вариант без полного хеш-сравнения, можно использовать режим по имени файла и размеру:
+
+```bat
+sync_new_files.exe copy "E:\kolo\fjfd\sync_folder" "F:\flash\copy_here" --index "D:\index\sync_index.json" --simple-mode
+```
+
+Такой режим быстрее, но менее строгий: он сравнивает путь и размер, а не содержимое файла.
+
+### 5. Узнать версию программы
+
+```bat
+sync_new_files.exe --version
+```
+
+Пример вывода:
+
+```txt
+sync_new_files.exe 1.0.0
+```
+
+### 6. Прогресс выполнения
+
+Во время сканирования и копирования утилита показывает прогресс в формате:
+
+```txt
+[scan] 1/200 (0.5%) - folder/file.txt
+[copy] 50/200 (25.0%) - folder/file.txt
+```
+
+Это помогает видеть, что процесс идёт, и сколько уже выполнено.
+
 ## Принцип работы
 
 Индекс хранит данные по файлам в виде:

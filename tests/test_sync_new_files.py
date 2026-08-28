@@ -26,18 +26,18 @@ class SyncNewFilesTest(unittest.TestCase):
             self.assertIn("nested/b.bin", manifest["files"])
             self.assertEqual(manifest["files"]["a.txt"]["size"], len("hello world".encode("utf-8")))
 
+            # nothing changed since the index snapshot, so nothing should be copied
             copied = copy_new_files(src, dst, index_path)
-            self.assertEqual(copied, ["a.txt", "nested/b.bin"])
-            self.assertEqual((dst / "a.txt").read_text(encoding="utf-8"), "hello world")
-            self.assertEqual((dst / "nested" / "b.bin").read_bytes(), b"\x00\x01\x02\x03")
-
-            copied_again = copy_new_files(src, dst, index_path)
-            self.assertEqual(copied_again, [])
+            self.assertEqual(copied, [])
+            self.assertEqual(list(dst.rglob("*")), [])
 
             (src / "a.txt").write_text("updated content", encoding="utf-8")
             changed = copy_new_files(src, dst, index_path)
             self.assertEqual(changed, ["a.txt"])
             self.assertEqual((dst / "a.txt").read_text(encoding="utf-8"), "updated content")
+
+            copied_again = copy_new_files(src, dst, index_path)
+            self.assertEqual(copied_again, [])
 
             with index_path.open("r", encoding="utf-8") as handle:
                 saved = __import__("json").load(handle)
@@ -80,9 +80,10 @@ class SyncNewFilesTest(unittest.TestCase):
             index_path = root / "index.json"
             build_index(src, index_path)
 
+            # size unchanged since the index snapshot, so nothing should be copied
             copied = copy_new_files(src, dst, index_path, simple_mode=True)
-            self.assertEqual(copied, ["report.txt"])
-            self.assertEqual((dst / "report.txt").read_text(encoding="utf-8"), "alpha")
+            self.assertEqual(copied, [])
+            self.assertFalse((dst / "report.txt").exists())
 
             src_file.write_text("beta", encoding="utf-8")
             copied = copy_new_files(src, dst, index_path, simple_mode=True)
@@ -127,17 +128,17 @@ class SyncNewFilesTest(unittest.TestCase):
             (first_root / "nested").mkdir()
             (first_root / "nested" / "b.bin").write_bytes(b"\x00\x01")
 
-            (second_root / "a.txt").write_text("hello", encoding="utf-8")
-            (second_root / "nested").mkdir()
-            (second_root / "nested" / "b.bin").write_bytes(b"\x00\x01")
-
             index_path = root / "index.json"
             build_index(first_root, index_path)
 
+            (second_root / "a.txt").write_text("hello", encoding="utf-8")
+            (second_root / "nested").mkdir()
+            (second_root / "nested" / "b.bin").write_bytes(b"\x00\x01\x02")
+
             copied = copy_new_files(second_root, destination, index_path)
-            self.assertEqual(copied, ["a.txt", "nested/b.bin"])
-            self.assertEqual((destination / "a.txt").read_text(encoding="utf-8"), "hello")
-            self.assertEqual((destination / "nested" / "b.bin").read_bytes(), b"\x00\x01")
+            self.assertEqual(copied, ["nested/b.bin"])
+            self.assertFalse((destination / "a.txt").exists())
+            self.assertEqual((destination / "nested" / "b.bin").read_bytes(), b"\x00\x01\x02")
 
 
 if __name__ == "__main__":

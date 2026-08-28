@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 
 def sha256_file(path: Path) -> str:
@@ -185,12 +185,9 @@ def copy_new_files(source_dir: Path, destination_dir: Path, index_path: Path, dr
             record = index_data.get("files", {}).get(rel_path)
 
             if simple_mode:
-                if destination_path.exists():
-                    try:
-                        if destination_path.stat().st_size == source_size:
-                            continue
-                    except (FileNotFoundError, OSError, PermissionError):
-                        pass
+                # only the index decides "known"; physical destination content is irrelevant
+                if record is not None and source_size == record.get("size"):
+                    continue
 
                 if dry_run:
                     copied.append(rel_path)
@@ -210,19 +207,7 @@ def copy_new_files(source_dir: Path, destination_dir: Path, index_path: Path, dr
             source_hash = hash_file(file_path)
 
             if record is not None and source_hash == record.get("hash"):
-                if destination_path.exists():
-                    try:
-                        if hash_file(destination_path) == record.get("hash"):
-                            continue
-                    except (FileNotFoundError, OSError, PermissionError):
-                        pass
-
-            if destination_path.exists():
-                try:
-                    if hash_file(destination_path) == source_hash:
-                        continue
-                except (FileNotFoundError, OSError, PermissionError):
-                    pass
+                continue
 
             if dry_run:
                 copied.append(rel_path)
