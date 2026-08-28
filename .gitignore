@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Test cache
+.pytest_cache/
+
+# Local virtual environments
+.venv/
+venv/
