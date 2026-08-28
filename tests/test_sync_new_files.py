@@ -1,9 +1,9 @@
-import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from sync_new_files import build_index, copy_new_files
+from sync_new_files import build_index, copy_new_files, scan_source
 
 
 class SyncNewFilesTest(unittest.TestCase):
@@ -38,6 +38,29 @@ class SyncNewFilesTest(unittest.TestCase):
             changed = copy_new_files(src, dst, index_path)
             self.assertEqual(changed, ["a.txt"])
             self.assertEqual((dst / "a.txt").read_text(encoding="utf-8"), "updated content")
+
+    def test_scan_source_skips_missing_file(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            src = root / "src"
+            src.mkdir()
+            valid = src / "valid.txt"
+            broken = src / "broken.txt"
+            valid.write_text("ok", encoding="utf-8")
+            broken.write_text("temporary", encoding="utf-8")
+
+            real_stat = Path.stat
+
+            def fake_stat(self, *args, **kwargs):
+                if self == broken:
+                    raise FileNotFoundError("missing file")
+                return real_stat(self, *args, **kwargs)
+
+            with patch.object(Path, "stat", fake_stat):
+                manifest = scan_source(src)
+
+            self.assertIn("valid.txt", manifest)
+            self.assertNotIn("broken.txt", manifest)
 
 
 if __name__ == "__main__":
